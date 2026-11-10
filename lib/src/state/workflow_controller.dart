@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:isolate';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
@@ -13,6 +12,87 @@ import '../services/seed_templates.dart';
 import '../services/xlsx_service.dart';
 
 enum WorkflowStep { import, template, mapping, review, export }
+
+typedef _ReadRegionRequest = ({
+  Uint8List bytes,
+  String sheetName,
+  int headerRow,
+  int firstDataRow,
+  int? lastDataRow,
+});
+
+typedef _PrepareRequest = ({
+  TargetTemplate template,
+  WorkbookRegion region,
+  List<FieldMapping> mappings,
+  Set<int> ignoredColumns,
+  String clientId,
+});
+
+typedef _PrepareResult = (
+  List<PreparedRecord>,
+  List<DataIssue>,
+  List<DuplicateGroup>,
+);
+
+typedef _ExportRequest = ({
+  TargetTemplate template,
+  List<PreparedRecord> records,
+  bool eligibleOnly,
+  Set<int> blockedRows,
+});
+
+WorkbookRegion _readRegionInBackground(_ReadRegionRequest request) =>
+    const XlsxService().readRegion(
+      request.bytes,
+      sheetName: request.sheetName,
+      headerRow: request.headerRow,
+      firstDataRow: request.firstDataRow,
+      lastDataRow: request.lastDataRow,
+    );
+
+_PrepareResult _prepareInBackground(_PrepareRequest request) {
+  const mappingEngine = MappingEngine();
+  const validationEngine = ValidationEngine();
+  const duplicateDetector = DuplicateDetector();
+  final prepared = mappingEngine.apply(
+    request.template,
+    request.region,
+    request.mappings,
+  );
+  final foundIssues = <DataIssue>[
+    ...validationEngine.validateConfiguration(
+      request.template,
+      request.mappings,
+      request.region,
+      explicitlyIgnoredColumns: request.ignoredColumns,
+    ),
+    ...validationEngine.validateRecords(
+      request.template,
+      request.region,
+      prepared,
+    ),
+    ...validationEngine.detectSectionRows(request.region),
+    ...validationEngine.detectLossyServiceCollapse(
+      request.region,
+      request.mappings,
+    ),
+  ];
+  final duplicates = duplicateDetector.detect(
+    request.template,
+    prepared,
+    clientId: request.clientId,
+  );
+  return (prepared, foundIssues, duplicates);
+}
+
+Uint8List _exportInBackground(_ExportRequest request) =>
+    const XlsxService().exportBytes(
+      request.template,
+      request.records,
+      eligibleOnly: request.eligibleOnly,
+      blockedRows: request.blockedRows,
+    );
 
 class WorkflowController extends ChangeNotifier {
   WorkflowController({
@@ -117,18 +197,25 @@ class WorkflowController extends ChangeNotifier {
     final currentInspection = inspection;
     final path = sourcePath;
     if (currentInspection == null || path == null) return;
+    final sheetName = currentInspection.sheets[selectedSheetIndex].name;
+    final selectedHeaderRow = headerRow;
+    final selectedFirstDataRow = firstDataRow;
+    final selectedLastDataRow = lastDataRow;
     await _run(() async {
-      final bytes = await File(path).readAsBytes();
-      region = await Isolate.run(
-        () => _xlsx.readRegion(
-          bytes,
-          sheetName: currentInspection.sheets[selectedSheetIndex].name,
-          headerRow: headerRow,
-          firstDataRow: firstDataRow,
-          lastDataRow: lastDataRow,
-        ),
+      final request = (
+        bytes: await File(path).readAsBytes(),
+        sheetName: sheetName,
+        headerRow: selectedHeaderRow,
+        firstDataRow: selectedFirstDataRow,
+        lastDataRow: selectedLastDataRow,
       );
-      suggestions = _mappingEngine.suggest(selectedTemplate, region!);
+      final selectedRegion = await compute(
+        _readRegionInBackground,
+        request,
+        debugLabel: 'read-workbook-region',
+      );
+      region = selectedRegion;
+      suggestions = _mappingEngine.suggest(selectedTemplate, selectedRegion);
       mappings = [];
       records = [];
       issues = [];
@@ -437,38 +524,19 @@ class WorkflowController extends ChangeNotifier {
   Future<void> prepareAndValidate() async {
     final selectedRegion = region;
     if (selectedRegion == null) return;
+    final request = (
+      template: selectedTemplate,
+      region: selectedRegion,
+      mappings: List<FieldMapping>.of(mappings),
+      ignoredColumns: Set<int>.of(explicitlyIgnoredColumns),
+      clientId: clientId,
+    );
     await _run(() async {
-      final result = await Isolate.run(() {
-        final prepared = _mappingEngine.apply(
-          selectedTemplate,
-          selectedRegion,
-          mappings,
-        );
-        final foundIssues = <DataIssue>[
-          ..._validationEngine.validateConfiguration(
-            selectedTemplate,
-            mappings,
-            selectedRegion,
-            explicitlyIgnoredColumns: explicitlyIgnoredColumns,
-          ),
-          ..._validationEngine.validateRecords(
-            selectedTemplate,
-            selectedRegion,
-            prepared,
-          ),
-          ..._validationEngine.detectSectionRows(selectedRegion),
-          ..._validationEngine.detectLossyServiceCollapse(
-            selectedRegion,
-            mappings,
-          ),
-        ];
-        final duplicates = _duplicateDetector.detect(
-          selectedTemplate,
-          prepared,
-          clientId: clientId,
-        );
-        return (prepared, foundIssues, duplicates);
-      });
+      final result = await compute(
+        _prepareInBackground,
+        request,
+        debugLabel: 'prepare-and-validate',
+      );
       records = result.$1;
       issues = result.$2;
       duplicateGroups = result.$3;
@@ -559,18 +627,23 @@ class WorkflowController extends ChangeNotifier {
     if (directory == null || sourcePath == null) return null;
     final path =
         '$directory${Platform.pathSeparator}${selectedTemplate.id}-prepared.xlsx';
+    final source = sourcePath!;
+    final includedCount = exportSummary.includedCount;
+    final request = (
+      template: selectedTemplate,
+      records: List<PreparedRecord>.of(records),
+      eligibleOnly: eligibleOnly,
+      blockedRows: Set<int>.of(blockedRows),
+    );
     await _run(() async {
-      final bytes = await Isolate.run(
-        () => _xlsx.exportBytes(
-          selectedTemplate,
-          records,
-          eligibleOnly: eligibleOnly,
-          blockedRows: blockedRows,
-        ),
+      final bytes = await compute(
+        _exportInBackground,
+        request,
+        debugLabel: 'export-workbook',
       );
       await _xlsx.exportSafely(
         destinationPath: path,
-        sourcePath: sourcePath!,
+        sourcePath: source,
         bytes: bytes,
       );
       audit.add(
@@ -578,8 +651,7 @@ class WorkflowController extends ChangeNotifier {
           action: 'export',
           at: DateTime.now().toUtc(),
           sourceRow: 0,
-          detail:
-              'Eligible only: $eligibleOnly; rows: ${exportSummary.includedCount}',
+          detail: 'Eligible only: $eligibleOnly; rows: $includedCount',
         ),
       );
       dirty = false;

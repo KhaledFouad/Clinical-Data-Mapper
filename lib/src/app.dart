@@ -127,11 +127,18 @@ class _ClinicalMapperHomeState extends State<ClinicalMapperHome> {
                     const LinearProgressIndicator(minHeight: 3),
                   if (controller.errorMessage != null)
                     MaterialBanner(
-                      content: Text(controller.errorMessage!),
+                      content: Text(
+                        controller.errorMessage!,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       leading: const Icon(Icons.error_outline),
                       actions: [
                         TextButton(
-                          onPressed: () {},
+                          onPressed: () => _showErrorDetails(
+                            context,
+                            controller.errorMessage!,
+                          ),
                           child: const Text('Review'),
                         ),
                       ],
@@ -145,6 +152,24 @@ class _ClinicalMapperHomeState extends State<ClinicalMapperHome> {
       );
     },
   );
+
+  Future<void> _showErrorDetails(BuildContext context, String message) =>
+      showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Error details'),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 640, maxHeight: 420),
+            child: SingleChildScrollView(child: SelectableText(message)),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      );
 
   Widget _sectionBody(WorkflowController controller) => switch (_section) {
     1 => RecentJobsScreen(controller: controller),

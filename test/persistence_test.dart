@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:clinical_data_mapper/src/models/domain.dart';
@@ -129,6 +130,56 @@ void main() {
       expect(reopened.records.last.excluded, isTrue);
       expect(reopened.records.last.exclusionReason, 'Confirmed non-record');
       expect(reopened.dirty, isFalse);
+    },
+  );
+
+  test(
+    'background work never sends controller listeners to an isolate',
+    () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'mapper-isolate-',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      final source = File('${directory.path}/source.xlsx');
+      await source.writeAsBytes(
+        workbookBytes(
+          headers: const ['code', 'FullName'],
+          rows: const [
+            ['001', 'Original'],
+          ],
+        ),
+      );
+      final controller = WorkflowController();
+      addTearDown(controller.dispose);
+      await controller.inspectPath(source.path);
+
+      final notification = Completer<void>();
+      void listener() {
+        if (!notification.isCompleted) notification.complete();
+      }
+
+      controller.addListener(listener);
+      addTearDown(() => controller.removeListener(listener));
+      await controller.selectPrimaryRegion();
+
+      expect(notification.isCompleted, isTrue);
+      expect(controller.errorMessage, isNull);
+      expect(controller.region, isNotNull);
+
+      controller
+        ..setMapping(
+          const FieldMapping(targetFieldId: 'code', sourceColumnIndexes: [0]),
+        )
+        ..setMapping(
+          const FieldMapping(
+            targetFieldId: 'full_name',
+            sourceColumnIndexes: [1],
+          ),
+        );
+      await controller.prepareAndValidate();
+
+      expect(controller.errorMessage, isNull);
+      expect(controller.records, isNotEmpty);
     },
   );
 }

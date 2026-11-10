@@ -73,6 +73,33 @@ void main() {
     expect(controller.records.single.values['full_name'], 'Doceur Test');
   });
 
+  testWidgets('long errors stay bounded and open in a scrollable dialog', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 860));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final longMessage = List.generate(
+      80,
+      (index) => 'Diagnostic line ${index + 1}',
+    ).join('\n');
+    controller.errorMessage = longMessage;
+
+    await tester.pumpWidget(ClinicalMapperApp(controller: controller));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    final summary = tester.widget<Text>(find.text(longMessage));
+    expect(summary.maxLines, 2);
+    expect(summary.overflow, TextOverflow.ellipsis);
+
+    await tester.tap(find.widgetWithText(TextButton, 'Review'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Error details'), findsOneWidget);
+    expect(find.byType(SingleChildScrollView), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'export readiness blocks all-row export but allows eligible rows',
     (tester) async {
