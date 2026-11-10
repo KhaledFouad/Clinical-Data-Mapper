@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "referring-doctors-sql",
+  "version": 1,
+  "name": "Referring Doctors",
+  "description": "Provisional 14-column order inferred from SQL; only code is an explicit source header.",
+  "verification": "inferredFromSql",
+  "outputSheetName": "ReferringDoctors",
+  "headerRow": 1,
+  "fields": [
+    {"id":"code","header":"code","description":"Explicit SQL source header and match key.","type":"identifier","required":true,"defaultValue":null,"constraint":{"maxLength":null,"minValue":null,"maxValue":null,"allowedValues":[],"nullMarkers":["","NULL","N/A"]},"severity":"error","nullExportBehavior":"blank","aliases":["code","code sih","رمز"]},
+    {"id":"full_name","header":"FullName","description":"Do not split automatically.","type":"text","required":false,"defaultValue":null,"constraint":{"maxLength":null,"minValue":null,"maxValue":null,"allowedValues":[],"nullMarkers":["","NULL","N/A"]},"severity":"error","nullExportBehavior":"blank","aliases":["full name","nom complet","prenom","nom","الاسم"]},
+    {"id":"prefix","header":"Prefix","description":"","type":"text","required":false,"defaultValue":null,"constraint":{},"severity":"error","nullExportBehavior":"blank","aliases":["title","titre"]},
+    {"id":"specialty","header":"Specialty","description":"","type":"text","required":false,"defaultValue":null,"constraint":{},"severity":"error","nullExportBehavior":"blank","aliases":["specialité","التخصص"]},
+    {"id":"address","header":"Address","description":"Read but not inserted by supplied SQL.","type":"text","required":false,"defaultValue":null,"constraint":{},"severity":"error","nullExportBehavior":"blank","aliases":["adresse","العنوان"]},
+    {"id":"country","header":"Country","description":"","type":"text","required":false,"defaultValue":null,"constraint":{},"severity":"error","nullExportBehavior":"blank","aliases":["pays","الدولة"]},
+    {"id":"telephone","header":"Telephone","description":"","type":"phone","required":false,"defaultValue":null,"constraint":{},"severity":"error","nullExportBehavior":"blank","aliases":["téléphone","هاتف"]},
+    {"id":"fax","header":"Fax","description":"","type":"phone","required":false,"defaultValue":null,"constraint":{},"severity":"error","nullExportBehavior":"blank","aliases":["telecopie","فاكس"]},
+    {"id":"mobile","header":"Mobile","description":"","type":"phone","required":false,"defaultValue":null,"constraint":{},"severity":"error","nullExportBehavior":"blank","aliases":["portable","جوال"]},
+    {"id":"email","header":"Email","description":"Read but not inserted by supplied SQL.","type":"email","required":false,"defaultValue":null,"constraint":{},"severity":"error","nullExportBehavior":"blank","aliases":["courriel","البريد الإلكتروني"]},
+    {"id":"city","header":"City","description":"","type":"text","required":false,"defaultValue":null,"constraint":{},"severity":"error","nullExportBehavior":"blank","aliases":["ville ou localité","المدينة"]},
+    {"id":"provider_type","header":"ProviderType","description":"Secteur is unconfirmed.","type":"text","required":false,"defaultValue":null,"constraint":{},"severity":"error","nullExportBehavior":"blank","aliases":["secteur"]},
+    {"id":"postal_code","header":"ZipCode","description":"","type":"identifier","required":false,"defaultValue":null,"constraint":{},"severity":"error","nullExportBehavior":"blank","aliases":["code postal","الرمز البريدي"]},
+    {"id":"state","header":"State","description":"Region is unconfirmed.","type":"text","required":false,"defaultValue":null,"constraint":{},"severity":"error","nullExportBehavior":"blank","aliases":["region","province"]}
+  ],
+  "uniqueKeys": [["code"]],
+  "businessRules": ["Website compatibility is unverified.","Provider type ID 4 and role ID 9 are downstream database behavior, not text defaults."]
+}

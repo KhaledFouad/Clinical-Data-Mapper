@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "users-doctors-sql",
+  "version": 1,
+  "name": "Users and Doctors",
+  "description": "Provisional source columns from SQL. UserCode unusually means full name.",
+  "verification": "inferredFromSql",
+  "outputSheetName": "Users",
+  "headerRow": 1,
+  "fields": [
+    {"id":"full_name","header":"UserCode","description":"SQL treats UserCode as a full name.","type":"text","required":true,"defaultValue":null,"constraint":{},"severity":"error","nullExportBehavior":"blank","aliases":["full name","name","nom","الاسم"]},
+    {"id":"username","header":"ac","description":"Username; email is generated downstream.","type":"identifier","required":true,"defaultValue":null,"constraint":{},"severity":"error","nullExportBehavior":"blank","aliases":["username","login"]},
+    {"id":"department","header":"Department","description":"DOC changes downstream role selection.","type":"text","required":false,"defaultValue":null,"constraint":{},"severity":"error","nullExportBehavior":"blank","aliases":["dept","service","القسم"]}
+  ],
+  "uniqueKeys": [["username"]],
+  "businessRules": ["Do not export generated passwords.","Website compatibility is unverified."]
+}

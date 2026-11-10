@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "clinics-services-sql",
+  "version": 1,
+  "name": "Clinics and Services",
+  "description": "Provisional five-column source read by the supplied SQL.",
+  "verification": "inferredFromSql",
+  "outputSheetName": "ServicePrice",
+  "headerRow": 1,
+  "fields": [
+    {"id":"clinic_name","header":"ClinicName","description":"Clinic matching uses name.","type":"text","required":true,"defaultValue":null,"constraint":{},"severity":"error","nullExportBehavior":"blank","aliases":["clinic","عيادة"]},
+    {"id":"service_code","header":"ServiceCode","description":"Service matching uses code.","type":"identifier","required":true,"defaultValue":null,"constraint":{},"severity":"error","nullExportBehavior":"blank","aliases":["service code","code service","رمز الخدمة"]},
+    {"id":"service_name_e","header":"ServiceNameE","description":"Assigned to ItemNameA; suffix meaning unverified.","type":"text","required":true,"defaultValue":null,"constraint":{},"severity":"error","nullExportBehavior":"blank","aliases":["column1","english service name"]},
+    {"id":"service_name_f","header":"ServiceNameF","description":"Assigned to ItemNameL; suffix meaning unverified.","type":"text","required":false,"defaultValue":null,"constraint":{},"severity":"error","nullExportBehavior":"blank","aliases":["service name","service name a","اسم الخدمة"]},
+    {"id":"net_price","header":"NetPrice","description":"","type":"decimal","required":true,"defaultValue":null,"constraint":{},"severity":"error","nullExportBehavior":"blank","aliases":["price","prix","السعر"]}
+  ],
+  "uniqueKeys": [["clinic_name","service_code"]],
+  "businessRules": ["Duration 15 and price list 5 are downstream constants.","Care setting, category, branch and accounting identifiers are not consumed and may collapse.","Website compatibility is unverified."]
+}
